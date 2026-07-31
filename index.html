@@ -783,14 +783,25 @@ acInput.addEventListener('input', function() {
   var q = acInput.value.trim().toLowerCase();
   dd.innerHTML = '';
   if (q.length < 2) { dd.classList.remove('open'); return; }
-  var hits = KUNDEN.filter(function(k) { return k.name.toLowerCase().indexOf(q) !== -1; }).slice(0,12);
+  var hits = KUNDEN.filter(function(k) {
+    return k.name.toLowerCase().indexOf(q) !== -1 ||
+           k.ort.toLowerCase().indexOf(q)  !== -1 ||
+           k.addr.toLowerCase().indexOf(q) !== -1;
+  }).slice(0,60);
   if (!hits.length) { dd.classList.remove('open'); return; }
   hits.forEach(function(k) {
     var d2 = document.createElement('div');
     d2.className = 'dd-item';
-    var i = k.name.toLowerCase().indexOf(q);
-    var hiName = k.name.slice(0,i) + '<mark>' + k.name.slice(i,i+q.length) + '</mark>' + k.name.slice(i+q.length);
-    d2.innerHTML = '<div class="dd-name">' + hiName + '</div><div class="dd-addr">' + k.addr + ', ' + k.plz + ' ' + k.ort + '</div>';
+    var iN = k.name.toLowerCase().indexOf(q);
+    var hiName = iN >= 0
+      ? k.name.slice(0,iN) + '<mark>' + k.name.slice(iN,iN+q.length) + '</mark>' + k.name.slice(iN+q.length)
+      : k.name;
+    var addrStr = k.addr + ', ' + k.plz + ' ' + k.ort;
+    var iA = addrStr.toLowerCase().indexOf(q);
+    var hiAddr = iA >= 0
+      ? addrStr.slice(0,iA) + '<mark>' + addrStr.slice(iA,iA+q.length) + '</mark>' + addrStr.slice(iA+q.length)
+      : addrStr;
+    d2.innerHTML = '<div class="dd-name">' + hiName + '</div><div class="dd-addr">' + hiAddr + '</div>';
     d2.addEventListener('mousedown', function(e) { e.preventDefault(); pick(k); });
     var tsy = 0;
     d2.addEventListener('touchstart', function(e) { tsy = e.touches[0].clientY; }, {passive:true});
