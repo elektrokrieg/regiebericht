@@ -355,7 +355,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
   <div class="status-ok" id="statusOk">✅ Bericht unterschrieben und gesperrt – PDF kann erstellt werden.</div>
   <button class="btn btn-sign" id="btnSign" onclick="signAndLock()">✍️ Unterschriften bestätigen &amp; Bericht sperren</button>
   <button class="btn btn-pdf" id="btnPdf" onclick="generatePDF()" style="display:none">📄 PDF erstellen &amp; speichern</button>
-  <button class="btn btn-email" id="btnEmail" onclick="generateAndEmail()" style="display:none">📧 PDF erzeugen &amp; per E-Mail senden</button>
+
   <button class="btn btn-reset" id="btnReset" onclick="resetForm()" style="display:none">🔄 Neuen Bericht erstellen</button>
 </div>
 
@@ -400,8 +400,16 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.3.0';
+var APP_VERSION = '2.4.0';
 var CHANGELOG = [
+  {
+    version: '2.4.0',
+    date: '01.07.2026',
+    notes: [
+      'Beim Laden eines Berichts werden Unterschriften und Sperrstatus zurueckgesetzt',
+      'E-Mail-Button entfernt'
+    ]
+  },
   {
     version: '2.3.0',
     date: '01.07.2026',
@@ -933,7 +941,7 @@ function signAndLock() {
   document.getElementById('statusOk').classList.add('show');
   document.getElementById('btnSign').style.display = 'none';
   document.getElementById('btnPdf').style.display = 'flex';
-  document.getElementById('btnEmail').style.display = 'flex';
+
   document.getElementById('btnReset').style.display = 'flex';
   document.getElementById('btnPdf').scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -1473,6 +1481,21 @@ function doLoad(id) {
   var entry = list.find(function(e) { return e.id === id; });
   if (!entry) { alert('Bericht nicht gefunden.'); return; }
   if (!confirm('Bericht "' + entry.name + '" laden? Nicht gespeicherte Eingaben gehen verloren.')) return;
+
+  // Reset locked state
+  document.body.classList.remove('locked');
+  document.getElementById('lockStrip').classList.remove('show');
+  document.getElementById('statusOk').classList.remove('show');
+  document.getElementById('btnSign').style.display = '';
+  document.getElementById('btnPdf').style.display  = 'none';
+  document.getElementById('btnReset').style.display = 'none';
+
+  // Reset signatures
+  sigA.clear();
+  sigK.clear();
+  document.getElementById('kundeNichtVorOrt').checked = false;
+  toggleKundeAbwesend();
+
   applyFormData(entry.data);
   closeLoadModal();
 }
