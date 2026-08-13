@@ -1237,14 +1237,18 @@ async function buildPdfFromDoc() {
   doc.setFontSize(9); safeText(String(abfahrtZeit), colB+20, y+3.5);
   if (!anfahrtPauschale) safeText('h', colB+36, y+3.5);
   y += 5.5;
+  // Arbeitseinheiten – eigene Zeile
   doc.setFontSize(7); setTxt(26,26,26);
-  safeText('Arbeitseinheiten:', M+CW/2-20, y+3.5);
-  doc.setFontSize(9); safeText(String(ae)+' AE', M+CW/2+26, y+3.5);
-  var exL = M+CW/2-5;
+  safeText('Arbeitseinheiten:', M, y+3.5);
+  doc.setFontSize(9); safeText(String(ae)+' AE', M+30, y+3.5);
+  y += 6;
+
+  // Auftrag erledigt – eigene Zeile darunter
+  var exL = M;
   bbox(exL, y+0.5, 4.5, 4.5, 0.5, 26,26,26);
   if (erledigt) { doc.setFont('helvetica','bold'); safeText('X', exL+0.3, y+4.5); }
-  doc.setFontSize(7); doc.setFont('helvetica','normal');
-  safeText('Auftrag erledigt und Funktionstüchtigkeit festgestellt', exL+6, y+3.5);
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); setTxt(26,26,26);
+  safeText('Auftrag erledigt und Funktionstuechtigkeit festgestellt', exL+6, y+3.5);
   y += 8;
 
   // ── UNTERSCHRIFTEN ──
