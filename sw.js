@@ -1,6 +1,6 @@
 // Service Worker – Elektro Krieg Regiebericht
 // Версия кэша – увеличивайте при обновлении файлов
-const CACHE_NAME = 'regiebericht-v47';
+const CACHE_NAME = 'regiebericht-v48';
 
 const ASSETS = [
   'https://elektrokrieg.github.io/regiebericht/',
