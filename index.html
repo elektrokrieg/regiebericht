@@ -271,23 +271,51 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
   <!-- ZEITEN -->
   <div class="zeiten-section">
-    <!-- Zeiten: neue Anordnung -->
+    <!-- Zeiten: Anfahrt + Abfahrt -->
     <div style="display:flex; gap:12px; margin-bottom:8px; align-items:stretch;">
 
-      <!-- Linke Seite: Felder -->
-      <div style="flex:1; display:grid; grid-template-columns:1fr 30px; gap:6px; align-items:end;">
-        <div><span class="flabel">Kilometer</span><input type="number" id="anfahrt" placeholder="0" min="0" step="0.1"></div>
-        <div class="zeiten-unit" id="anfahrtUnit">km</div>
+      <!-- Felder: Anfahrt + Abfahrt -->
+      <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; align-items:end;">
 
-        <div><span class="flabel">Wegezeit (h)</span><input type="number" id="wegezeit" placeholder="0" min="0" step="0.25" oninput="wegezeitHChanged()"></div>
-        <div class="zeiten-unit" id="wegezeitUnit">h</div>
+        <!-- Anfahrt Header -->
+        <div style="grid-column:1; font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; border-bottom:1px solid var(--light-border); padding-bottom:3px;">Anfahrt</div>
+        <!-- Abfahrt Header -->
+        <div style="grid-column:2; font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; border-bottom:1px solid var(--light-border); padding-bottom:3px;">Abfahrt</div>
 
-        <div><span class="flabel">Wegezeit (min)</span><input type="number" id="wegezeitMin" placeholder="0" min="0" step="1" oninput="wegezeitMinChanged()"></div>
-        <div class="zeiten-unit">min</div>
+        <!-- Kilometer -->
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Kilometer</span><input type="number" id="anfahrt" placeholder="0" min="0" step="0.1"></div>
+          <div class="zeiten-unit" id="anfahrtUnit">km</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Kilometer</span><input type="number" id="abfahrt" placeholder="0" min="0" step="0.1"></div>
+          <div class="zeiten-unit" id="abfahrtUnit">km</div>
+        </div>
+
+        <!-- Zeit h -->
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Zeit (h)</span><input type="number" id="wegezeit" placeholder="0" min="0" step="0.25" oninput="wegezeitHChanged()"></div>
+          <div class="zeiten-unit" id="wegezeitUnit">h</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Zeit (h)</span><input type="number" id="abfahrtZeit" placeholder="0" min="0" step="0.25" oninput="abfahrtZeitHChanged()"></div>
+          <div class="zeiten-unit" id="abfahrtZeitUnit">h</div>
+        </div>
+
+        <!-- Zeit min -->
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Zeit (min)</span><input type="number" id="wegezeitMin" placeholder="0" min="0" step="1" oninput="wegezeitMinChanged()"></div>
+          <div class="zeiten-unit">min</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 30px; gap:4px; align-items:end;">
+          <div><span class="flabel">Zeit (min)</span><input type="number" id="abfahrtZeitMin" placeholder="0" min="0" step="1" oninput="abfahrtZeitMinChanged()"></div>
+          <div class="zeiten-unit">min</div>
+        </div>
+
       </div>
 
-      <!-- Rechte Seite: Mgn psch -->
-      <div style="display:flex; align-items:center; justify-content:center; min-width:100px;">
+      <!-- Rechts: Mgn psch (gilt für alle) -->
+      <div style="display:flex; align-items:center; justify-content:center; min-width:90px;">
         <label style="display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;border:1.5px solid #e8a020;border-radius:6px;padding:8px 10px;background:#fff8e8;width:100%;">
           <input type="checkbox" id="anfahrtPauschale" onchange="togglePauschale()" style="width:18px;height:18px;margin:0;accent-color:#e8a020;">
           <span style="font-weight:700;color:#7a5000;text-align:center;">Mgn psch</span>
@@ -400,8 +428,16 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.4.0';
+var APP_VERSION = '2.5.0';
 var CHANGELOG = [
+  {
+    version: '2.5.0',
+    date: '01.07.2026',
+    notes: [
+      'Anfahrt und Abfahrt getrennt erfassbar (je Kilometer und Zeit)',
+      'Mgn psch gilt fuer beide Spalten gleichzeitig'
+    ]
+  },
   {
     version: '2.4.0',
     date: '01.07.2026',
@@ -905,29 +941,35 @@ function wegezeitMinChanged() {
 
 // ── ANFAHRT PAUSCHALE ──
 function togglePauschale() {
-  var cb       = document.getElementById('anfahrtPauschale');
-  var kmInput  = document.getElementById('anfahrt');
-  var kmUnit   = document.getElementById('anfahrtUnit');
-  var wtInput  = document.getElementById('wegezeit');
-  var wtUnit   = document.getElementById('wegezeitUnit');
+  var cb = document.getElementById('anfahrtPauschale');
   if (cb.checked) {
-    kmInput.value = ''; kmInput.placeholder = 'Mgn psch';
-    kmInput.disabled = true; kmInput.style.color = '#aaa';
-    if (kmUnit) kmUnit.style.opacity = '0.3';
-    wtInput.value = ''; wtInput.placeholder = 'Mgn psch';
-    wtInput.disabled = true; wtInput.style.color = '#aaa';
-    if (wtUnit) wtUnit.style.opacity = '0.3';
-    var wtMinInput = document.getElementById('wegezeitMin');
-    if (wtMinInput) { wtMinInput.value = ''; wtMinInput.placeholder = 'Mgn psch'; wtMinInput.disabled = true; wtMinInput.style.color = '#aaa'; }
+    var pFields = [
+      {id:'anfahrt',      unitId:'anfahrtUnit'},
+      {id:'wegezeit',     unitId:'wegezeitUnit'},
+      {id:'wegezeitMin',  unitId:null},
+      {id:'abfahrt',      unitId:'abfahrtUnit'},
+      {id:'abfahrtZeit',  unitId:'abfahrtZeitUnit'},
+      {id:'abfahrtZeitMin', unitId:null}
+    ];
+    pFields.forEach(function(f) {
+      var el = document.getElementById(f.id);
+      if (el) { el.value=''; el.placeholder='Mgn psch'; el.disabled=true; el.style.color='#aaa'; }
+      if (f.unitId) { var u=document.getElementById(f.unitId); if(u) u.style.opacity='0.3'; }
+    });
   } else {
-    kmInput.value = ''; kmInput.placeholder = '0';
-    kmInput.disabled = false; kmInput.style.color = '';
-    if (kmUnit) kmUnit.style.opacity = '1';
-    wtInput.value = ''; wtInput.placeholder = '0';
-    wtInput.disabled = false; wtInput.style.color = '';
-    if (wtUnit) wtUnit.style.opacity = '1';
-    var wtMinInput = document.getElementById('wegezeitMin');
-    if (wtMinInput) { wtMinInput.value = ''; wtMinInput.placeholder = '0'; wtMinInput.disabled = false; wtMinInput.style.color = ''; }
+    var pFields2 = [
+      {id:'anfahrt',      unitId:'anfahrtUnit'},
+      {id:'wegezeit',     unitId:'wegezeitUnit'},
+      {id:'wegezeitMin',  unitId:null},
+      {id:'abfahrt',      unitId:'abfahrtUnit'},
+      {id:'abfahrtZeit',  unitId:'abfahrtZeitUnit'},
+      {id:'abfahrtZeitMin', unitId:null}
+    ];
+    pFields2.forEach(function(f) {
+      var el = document.getElementById(f.id);
+      if (el) { el.value=''; el.placeholder='0'; el.disabled=false; el.style.color=''; }
+      if (f.unitId) { var u=document.getElementById(f.unitId); if(u) u.style.opacity='1'; }
+    });
   }
 }
 
@@ -1002,8 +1044,10 @@ async function buildPdfFromDoc() {
   var baS      = chk('baStorung');
   var baA      = chk('baAuftrag');
   var anfahrtPauschale = document.getElementById('anfahrtPauschale') && document.getElementById('anfahrtPauschale').checked;
-  var anfahrt  = anfahrtPauschale ? 'Mgn psch' : (val('anfahrt') || '0');
-  var wegezeit = anfahrtPauschale ? 'Mgn psch' : (val('wegezeit') || '0');
+  var anfahrt     = anfahrtPauschale ? 'Mgn psch' : (val('anfahrt')    || '0');
+  var wegezeit    = anfahrtPauschale ? 'Mgn psch' : (val('wegezeit')   || '0');
+  var abfahrt     = anfahrtPauschale ? 'Mgn psch' : (val('abfahrt')    || '0');
+  var abfahrtZeit = anfahrtPauschale ? 'Mgn psch' : (val('abfahrtZeit')|| '0');
   var ae       = val('arbeitseinheiten') || '0';
   var az       = val('arbeitszeit')      || '0';
   var datum    = val('datum')            || '';
@@ -1171,17 +1215,31 @@ async function buildPdfFromDoc() {
 
   // ── ZEITEN ──
   hline(y, M, W-M, 0.3, 200,200,200); y += 2;
+  // Anfahrt / Abfahrt nebeneinander
+  var colA = M, colB = M + CW/2;
+  doc.setFontSize(7); doc.setFont('helvetica','bold'); setTxt(110,110,110);
+  safeText('ANFAHRT', colA, y+3.5);
+  safeText('ABFAHRT', colB, y+3.5);
+  y += 5;
   doc.setFontSize(7); doc.setFont('helvetica','normal'); setTxt(26,26,26);
-  safeText('Kilometer:', M, y+3.5);
-  doc.setFontSize(9); safeText(String(anfahrt), M+22, y+3.5);
-  if (!anfahrtPauschale) safeText('km', M+38, y+3.5);
-  safeText('Arbeitseinheiten:', M+CW/2-5, y+3.5);
-  doc.setFontSize(9); safeText(String(ae)+' AE', M+CW/2+26, y+3.5);
+  safeText('Kilometer:', colA, y+3.5);
+  doc.setFontSize(9); safeText(String(anfahrt), colA+20, y+3.5);
+  if (!anfahrtPauschale) safeText('km', colA+36, y+3.5);
+  safeText('Kilometer:', colB, y+3.5);
+  doc.setFontSize(9); safeText(String(abfahrt), colB+20, y+3.5);
+  if (!anfahrtPauschale) safeText('km', colB+36, y+3.5);
   y += 5.5;
   doc.setFontSize(7); setTxt(26,26,26);
-  safeText('Wegezeit:', M, y+3.5);
-  doc.setFontSize(9); safeText(String(wegezeit), M+22, y+3.5);
-  if (!anfahrtPauschale) safeText('h', M+38, y+3.5);
+  safeText('Zeit:', colA, y+3.5);
+  doc.setFontSize(9); safeText(String(wegezeit), colA+20, y+3.5);
+  if (!anfahrtPauschale) safeText('h', colA+36, y+3.5);
+  safeText('Zeit:', colB, y+3.5);
+  doc.setFontSize(9); safeText(String(abfahrtZeit), colB+20, y+3.5);
+  if (!anfahrtPauschale) safeText('h', colB+36, y+3.5);
+  y += 5.5;
+  doc.setFontSize(7); setTxt(26,26,26);
+  safeText('Arbeitseinheiten:', M+CW/2-20, y+3.5);
+  doc.setFontSize(9); safeText(String(ae)+' AE', M+CW/2+26, y+3.5);
   var exL = M+CW/2-5;
   bbox(exL, y+0.5, 4.5, 4.5, 0.5, 26,26,26);
   if (erledigt) { doc.setFont('helvetica','bold'); safeText('X', exL+0.3, y+4.5); }
@@ -1334,6 +1392,9 @@ function collectFormData() {
     anfahrtPauschale: document.getElementById('anfahrtPauschale').checked,
     wegezeit:         document.getElementById('wegezeit').value,
     wegezeitMin:      document.getElementById('wegezeitMin').value,
+    abfahrt:          document.getElementById('abfahrt').value,
+    abfahrtZeit:      document.getElementById('abfahrtZeit').value,
+    abfahrtZeitMin:   document.getElementById('abfahrtZeitMin').value,
     arbeitseinheiten: document.getElementById('arbeitseinheiten').value,
     datum:            document.getElementById('datum').value,
     erledigt:         document.getElementById('erledigt').checked,
@@ -1356,6 +1417,9 @@ function applyFormData(data) {
   document.getElementById('anfahrtPauschale').checked = data.anfahrtPauschale || false;
   document.getElementById('wegezeit').value         = data.wegezeit     || '';
   document.getElementById('wegezeitMin').value      = data.wegezeitMin  || '';
+  document.getElementById('abfahrt').value          = data.abfahrt      || '';
+  document.getElementById('abfahrtZeit').value      = data.abfahrtZeit  || '';
+  document.getElementById('abfahrtZeitMin').value   = data.abfahrtZeitMin || '';
   document.getElementById('arbeitseinheiten').value = data.arbeitseinheiten || '';
   document.getElementById('datum').value            = data.datum        || '';
   document.getElementById('erledigt').checked       = data.erledigt     || false;
