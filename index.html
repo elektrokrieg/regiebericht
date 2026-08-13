@@ -947,6 +947,24 @@ function wegezeitMinChanged() {
   }
 }
 
+function abfahrtZeitHChanged() {
+  // Stunden eingetragen -> Minuten-Feld leeren
+  if (document.getElementById('abfahrtZeit').value !== '') {
+    document.getElementById('abfahrtZeitMin').value = '';
+  }
+}
+
+function abfahrtZeitMinChanged() {
+  // Minuten eingetragen -> in Stunden umrechnen
+  var min = parseFloat(document.getElementById('abfahrtZeitMin').value);
+  var hField = document.getElementById('abfahrtZeit');
+  if (!isNaN(min) && min > 0) {
+    hField.value = Math.round(min / 60 * 100) / 100;
+  } else {
+    hField.value = '';
+  }
+}
+
 // ── ANFAHRT PAUSCHALE ──
 function togglePauschale() {
   var cb = document.getElementById('anfahrtPauschale');
