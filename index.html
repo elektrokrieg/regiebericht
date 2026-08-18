@@ -428,8 +428,16 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.6.0';
+var APP_VERSION = '2.7.0';
 var CHANGELOG = [
+  {
+    version: '2.7.0',
+    date: '13.08.2026',
+    notes: [
+      'PDF: An- und Abfahrt werden als Summe unter An/Abfahrt zusammengefasst',
+      'Bei Mgn psch steht in der PDF einmal An/Abfahrt: Mgn psch'
+    ]
+  },
   {
     version: '2.6.0',
     date: '13.08.2026',
@@ -1241,28 +1249,19 @@ async function buildPdfFromDoc() {
 
   // ── ZEITEN ──
   hline(y, M, W-M, 0.3, 200,200,200); y += 2;
-  // Anfahrt / Abfahrt nebeneinander
-  var colA = M, colB = M + CW/2;
-  doc.setFontSize(7); doc.setFont('helvetica','bold'); setTxt(110,110,110);
-  safeText('ANFAHRT', colA, y+3.5);
-  safeText('ABFAHRT', colB, y+3.5);
-  y += 5;
+  // An/Abfahrt: Summe beider Werte
   doc.setFontSize(7); doc.setFont('helvetica','normal'); setTxt(26,26,26);
-  safeText('Kilometer:', colA, y+3.5);
-  doc.setFontSize(9); safeText(String(anfahrt), colA+20, y+3.5);
-  if (!anfahrtPauschale) safeText('km', colA+36, y+3.5);
-  safeText('Kilometer:', colB, y+3.5);
-  doc.setFontSize(9); safeText(String(abfahrt), colB+20, y+3.5);
-  if (!anfahrtPauschale) safeText('km', colB+36, y+3.5);
-  y += 5.5;
-  doc.setFontSize(7); setTxt(26,26,26);
-  safeText('Zeit:', colA, y+3.5);
-  doc.setFontSize(9); safeText(String(wegezeit), colA+20, y+3.5);
-  if (!anfahrtPauschale) safeText('h', colA+36, y+3.5);
-  safeText('Zeit:', colB, y+3.5);
-  doc.setFontSize(9); safeText(String(abfahrtZeit), colB+20, y+3.5);
-  if (!anfahrtPauschale) safeText('h', colB+36, y+3.5);
-  y += 5.5;
+  safeText('An-/Abfahrt:', M, y+3.5);
+  if (anfahrtPauschale) {
+    doc.setFontSize(9); safeText('Mgn psch', M+25, y+3.5);
+  } else {
+    var kmSumme = (parseFloat(anfahrt) || 0) + (parseFloat(abfahrt) || 0);
+    var hSumme  = (parseFloat(wegezeit) || 0) + (parseFloat(abfahrtZeit) || 0);
+    doc.setFontSize(9);
+    safeText(String(Math.round(kmSumme * 100) / 100) + ' km', M+25, y+3.5);
+    safeText(String(Math.round(hSumme  * 100) / 100) + ' h',  M+CW/2, y+3.5);
+  }
+  y += 6;
   // Arbeitseinheiten – eigene Zeile
   doc.setFontSize(7); setTxt(26,26,26);
   safeText('Arbeitseinheiten:', M, y+3.5);
