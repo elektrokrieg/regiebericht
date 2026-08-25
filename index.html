@@ -144,6 +144,8 @@ mark { background: #fff3b0; border-radius: 2px; }
 .btn-save:hover { background: #245a3c; }
 .btn-load { background: #3d5a80; color: white; }
 .btn-load:hover { background: #2e4460; }
+.btn-new { background: #555; color: white; font-size:14px; padding:12px; }
+.btn-new:hover { background: #444; }
 .save-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
 .save-modal-box { background:white; border-radius:12px; max-width:480px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
 .save-modal-header { background:#1a3a5c; color:white; padding:14px 16px; border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center; }
@@ -380,6 +382,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
     <button class="btn btn-save" onclick="showSaveModal()">💾 Bericht speichern</button>
     <button class="btn btn-load" onclick="showLoadModal()">📂 Bericht laden</button>
   </div>
+  <button class="btn btn-new" onclick="newBericht()">📝 Neuen Bericht erstellen</button>
   <div class="status-ok" id="statusOk">✅ Bericht unterschrieben und gesperrt – PDF kann erstellt werden.</div>
   <button class="btn btn-sign" id="btnSign" onclick="signAndLock()">✍️ Unterschriften bestätigen &amp; Bericht sperren</button>
   <button class="btn btn-pdf" id="btnPdf" onclick="generatePDF()" style="display:none">📄 PDF erstellen &amp; speichern</button>
@@ -428,8 +431,16 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.7.0';
+var APP_VERSION = '2.8.0';
 var CHANGELOG = [
+  {
+    version: '2.8.0',
+    date: '13.08.2026',
+    notes: [
+      'Neuer Button: Neuen Bericht erstellen - setzt das Formular zurueck ohne die App neu zu laden',
+      'Mehrere Berichte koennen so schnell hintereinander vorbereitet und gespeichert werden'
+    ]
+  },
   {
     version: '2.7.0',
     date: '13.08.2026',
@@ -1024,6 +1035,61 @@ function signAndLock() {
 function resetForm() {
   if (!confirm('Neuen Bericht erstellen? Alle Eingaben gehen verloren.')) return;
   location.reload();
+}
+
+function newBericht() {
+  if (!confirm('Formular leeren und neuen Bericht erstellen?')) return;
+  // Reset locked state
+  document.body.classList.remove('locked');
+  document.getElementById('lockStrip').classList.remove('show');
+  document.getElementById('statusOk').classList.remove('show');
+  document.getElementById('btnSign').style.display = '';
+  document.getElementById('btnPdf').style.display  = 'none';
+  document.getElementById('btnReset').style.display = 'none';
+
+  // Reset signatures
+  sigA.clear();
+  sigK.clear();
+  document.getElementById('kundeNichtVorOrt').checked = false;
+  toggleKundeAbwesend();
+
+  // Reset all fields
+  var fields = ['objektSearch','adresse','plz','ort','auftragsnr','anfahrt',
+                'wegezeit','wegezeitMin','abfahrt','abfahrtZeit','abfahrtZeitMin',
+                'arbeitseinheiten','arbeitszeit'];
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('blattNr').value = '1';
+  document.getElementById('fortsetzung').checked   = false;
+  document.getElementById('baWartung').checked     = false;
+  document.getElementById('baStorung').checked     = false;
+  document.getElementById('baAuftrag').checked     = false;
+  document.getElementById('erledigt').checked      = false;
+  document.getElementById('anfahrtPauschale').checked = false;
+  togglePauschale();
+
+  // Reset datum to today
+  var today = new Date();
+  document.getElementById('datum').value = today.toISOString().slice(0,10);
+  document.getElementById('sigDatumDisplay').textContent = fmtDate(today.toISOString().slice(0,10));
+
+  // Reset tätigkeiten, material, mitarbeiter
+  document.getElementById('taetigkeitenList').innerHTML = '';
+  taetCounter = 0;
+  addTaetigkeit();
+
+  document.getElementById('matRows').innerHTML = '';
+  matCounter = 0;
+  addMatRow();
+
+  document.getElementById('mitarbeiterRows').innerHTML = '';
+  mitCounter = 0;
+  addMitarbeiterRow();
+
+  currentKundeEmail = '';
+  window.scrollTo(0, 0);
 }
 
 // ── LOGO ──
