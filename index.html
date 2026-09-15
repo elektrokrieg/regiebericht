@@ -764,13 +764,16 @@ const KUNDEN = [
 
 // ── STANDARD TEXTS ──
 var STANDARD_ANLAGEN = [
-  'Brandmeldeanlage','Einbruchmeldeanlage','Notbeleuchtungsanlage',
-  'Elektronische Lautsprecheranlage','Rauch-/Wärmeabzugsanlage',
-  'Feststellanlage','Fluchttürsteuerung','Schwesternrufanlage'
-];
-function makeStandardText(anlage) {
-  return 'Wartung und Inspektion der\n' + anlage + '\nlaut Wartungsvertrag';
-}
+  {label:'Brandmeldeanlage',           text:'Wartung und Inspektion der\nBrandmeldeanlage\nlaut Wartungsvertrag'},
+  {label:'Einbruchmeldeanlage',        text:'Wartung und Inspektion der\nEinbruchmeldeanlage\nlaut Wartungsvertrag'},
+  {label:'Notbeleuchtungsanlage',      text:'Wartung und Inspektion der\nNotbeleuchtungsanlage\nlaut Wartungsvertrag'},
+  {label:'Elektr. Lautsprecheranlage', text:'Wartung und Inspektion der\nElektronischen Lautsprecheranlage\nlaut Wartungsvertrag'},
+  {label:'Rauch-/WRZanlage',           text:'Wartung und Inspektion der\nRauch-/Waermeabzugsanlage\nlaut Wartungsvertrag'},
+  {label:'Feststellanlage',            text:'Wartung und Inspektion der\nFeststellanlage\nlaut Wartungsvertrag'},
+  {label:'Fluchttuersteuerung',        text:'Wartung und Inspektion der\nFluchttueersteuerung\nlaut Wartungsvertrag'},
+  {label:'Schwesternrufanlage',        text:'Wartung und Inspektion der\nSchwesternrufanlage\nlaut Wartungsvertrag'},
+  {label:'TTUV',                        text:'Beistellung zur Sachverstaendigen Wiederholungspruefung der'}
+]
 
 // ── TÄTIGKEITEN ──
 var taetCounter = 0;
