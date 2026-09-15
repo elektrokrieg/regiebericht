@@ -431,8 +431,15 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.8.0';
+var APP_VERSION = '2.9.0';
 var CHANGELOG = [
+  {
+    version: '2.9.0',
+    date: '13.08.2026',
+    notes: [
+      'Neuer Standardtext TTUV: Beistellung zur Sachverstaendigen Wiederholungspruefung'
+    ]
+  },
   {
     version: '2.8.0',
     date: '13.08.2026',
@@ -775,7 +782,7 @@ function addTaetigkeit(preText) {
   div.className = 'taetigkeit-item';
   div.id = id;
   var tags = STANDARD_ANLAGEN.map(function(a) {
-    return '<span class="tpl-tag" onclick="applyTemplate(this,\'' + id + '\',\'' + a + '\')">' + a + '</span>';
+    return '<span class="tpl-tag" onclick="applyTemplate(this,\'' + id + '\',\'' + a.label + '\')">' + a.label + '</span>';
   }).join('');
   div.innerHTML = '<button class="del-taetigkeit" onclick="document.getElementById(\'' + id + '\').remove()" title="Löschen">×</button>' +
     '<div class="template-picker-row"><span class="tpicker-label">Standardtext:</span><div class="template-tags">' + tags + '</div></div>' +
@@ -783,13 +790,19 @@ function addTaetigkeit(preText) {
   list.appendChild(div);
   if (!preText) div.querySelector('textarea').focus();
 }
-function applyTemplate(tagEl, blockId, anlage) {
+function applyTemplate(tagEl, blockId, label) {
   var ta = document.getElementById('ta_' + blockId);
   var block = document.getElementById(blockId);
   var allTags = block.querySelectorAll('.tpl-tag');
   var isActive = tagEl.classList.contains('active');
   allTags.forEach(function(t) { t.classList.remove('active'); });
-  if (isActive) { ta.value = ''; } else { tagEl.classList.add('active'); ta.value = makeStandardText(anlage); }
+  if (isActive) {
+    ta.value = '';
+  } else {
+    tagEl.classList.add('active');
+    var entry = STANDARD_ANLAGEN.find(function(a) { return a.label === label; });
+    ta.value = entry ? entry.text : label;
+  }
 }
 
 // ── MATERIAL ──
