@@ -146,6 +146,8 @@ mark { background: #fff3b0; border-radius: 2px; }
 .btn-load:hover { background: #2e4460; }
 .btn-new { background: #555; color: white; font-size:14px; padding:12px; }
 .btn-new:hover { background: #444; }
+.btn-email { background: #1a6e3c; color: white; }
+.btn-email:hover { background: #155c32; }
 .save-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; }
 .save-modal-box { background:white; border-radius:12px; max-width:480px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
 .save-modal-header { background:#1a3a5c; color:white; padding:14px 16px; border-radius:12px 12px 0 0; display:flex; justify-content:space-between; align-items:center; }
@@ -386,6 +388,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
   <div class="status-ok" id="statusOk">✅ Bericht unterschrieben und gesperrt – PDF kann erstellt werden.</div>
   <button class="btn btn-sign" id="btnSign" onclick="signAndLock()">✍️ Unterschriften bestätigen &amp; Bericht sperren</button>
   <button class="btn btn-pdf" id="btnPdf" onclick="generatePDF()" style="display:none">📄 PDF erstellen &amp; speichern</button>
+  <button class="btn btn-email" id="btnMail" onclick="sendEmail()" style="display:none">📧 PDF per E-Mail senden</button>
 
   <button class="btn btn-reset" id="btnReset" onclick="resetForm()" style="display:none">🔄 Neuen Bericht erstellen</button>
 </div>
@@ -431,8 +434,17 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '2.9.0';
+var APP_VERSION = '3.0.0';
 var CHANGELOG = [
+  {
+    version: '3.0.0',
+    date: '13.08.2026',
+    notes: [
+      'Neuer Button nach Unterschrift: PDF per E-Mail senden',
+      'PDF wird gespeichert und E-Mail-App öffnet sich mit vorausgefülltem Empfänger, Betreff und Text',
+      'Empfänger: regiebericht.elektrokrieg@proton.me'
+    ]
+  },
   {
     version: '2.9.0',
     date: '13.08.2026',
@@ -1034,6 +1046,63 @@ function togglePauschale() {
   }
 }
 
+// ── EMAIL ──
+var EMAIL_EMPFAENGER = 'regiebericht.elektrokrieg@proton.me';
+
+async function sendEmail() {
+  var btn = document.getElementById('btnMail');
+  btn.disabled = true;
+  btn.textContent = '⏳ PDF wird erstellt …';
+
+  try {
+    // First generate and save the PDF
+    var jspdfDoc = await buildPdfFromDoc();
+    var objName  = document.getElementById('objektSearch').value || 'Bericht';
+    var datum    = document.getElementById('datum').value || new Date().toISOString().slice(0,10);
+    var safeName = objName.replace(/[^a-zA-Z0-9äöüÄÖÜß\- ]/g,'').trim().slice(0,35);
+    var filename = 'Regiebericht_' + safeName + '_' + datum.replace(/-/g,'') + '.pdf';
+
+    // Save PDF
+    await saveProtectedPDF(jspdfDoc, filename);
+
+    // Wait briefly for download to start
+    await new Promise(function(r) { setTimeout(r, 1000); });
+
+    // Build mailto link
+    var datumFmt = fmtDate(datum);
+    var betreff  = encodeURIComponent('Regiebericht – ' + objName + ' – ' + datumFmt);
+    var text     = encodeURIComponent(
+      'Guten Tag,
+
+bitte entnehmen Sie dem Anhang den Regiebericht vom ' +
+      datumFmt + ' für das Objekt ' + objName + '.
+
+' +
+      'Mit freundlichen Grüßen
+Elektro Krieg Meiningen'
+    );
+
+    window.location.href = 'mailto:' + EMAIL_EMPFAENGER +
+      '?subject=' + betreff + '&body=' + text;
+
+    // Show instruction
+    setTimeout(function() {
+      alert('Die PDF wurde gespeichert als:
+"' + filename + '"
+
+Die E-Mail-App wurde geöffnet.
+Bitte fügen Sie die gespeicherte PDF als Anhang hinzu.');
+    }, 1500);
+
+  } catch(err) {
+    alert('Fehler: ' + err.message);
+    console.error(err);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '📧 PDF per E-Mail senden';
+}
+
 // ── LOCK ──
 function signAndLock() {
   var kundeAbwesend = document.getElementById('kundeNichtVorOrt').checked;
@@ -1061,6 +1130,7 @@ function newBericht() {
   document.getElementById('statusOk').classList.remove('show');
   document.getElementById('btnSign').style.display = '';
   document.getElementById('btnPdf').style.display  = 'none';
+  document.getElementById('btnMail').style.display = 'none';
   document.getElementById('btnReset').style.display = 'none';
 
   // Reset signatures
@@ -1663,6 +1733,7 @@ function doLoad(id) {
   document.getElementById('statusOk').classList.remove('show');
   document.getElementById('btnSign').style.display = '';
   document.getElementById('btnPdf').style.display  = 'none';
+  document.getElementById('btnMail').style.display = 'none';
   document.getElementById('btnReset').style.display = 'none';
 
   // Reset signatures
