@@ -1070,11 +1070,10 @@ async function sendEmail() {
 
     // Build mailto link
     var datumFmt = fmtDate(datum);
-    var betreff  = encodeURIComponent('Regiebericht – ' + objName + ' – ' + datumFmt);
+    var betreff  = encodeURIComponent('Regiebericht ' + objName + ' ' + datumFmt);
     var text     = encodeURIComponent(
-      'Guten Tag,\n\nbitte entnehmen Sie dem Anhang den Regiebericht vom ' +
-      datumFmt + ' fuer das Objekt ' + objName + '.\n\n' +
-      'Mit freundlichen Gruessen\nElektro Krieg Meiningen'
+      'Hallo Anette,\n\nAnbei sende ich dir den Regiebericht vom ' +
+      datumFmt + ' bei ' + objName + '.\n\nGrüße'
     );
 
     window.location.href = 'mailto:' + EMAIL_EMPFAENGER +
