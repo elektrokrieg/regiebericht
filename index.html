@@ -1072,14 +1072,9 @@ async function sendEmail() {
     var datumFmt = fmtDate(datum);
     var betreff  = encodeURIComponent('Regiebericht – ' + objName + ' – ' + datumFmt);
     var text     = encodeURIComponent(
-      'Guten Tag,
-
-bitte entnehmen Sie dem Anhang den Regiebericht vom ' +
-      datumFmt + ' für das Objekt ' + objName + '.
-
-' +
-      'Mit freundlichen Grüßen
-Elektro Krieg Meiningen'
+      'Guten Tag,\n\nbitte entnehmen Sie dem Anhang den Regiebericht vom ' +
+      datumFmt + ' fuer das Objekt ' + objName + '.\n\n' +
+      'Mit freundlichen Gruessen\nElektro Krieg Meiningen'
     );
 
     window.location.href = 'mailto:' + EMAIL_EMPFAENGER +
