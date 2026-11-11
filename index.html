@@ -434,7 +434,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '3.3.4';
+var APP_VERSION = '3.3.6';
 var CHANGELOG = [
   {
     version: '3.3.0',
@@ -724,7 +724,8 @@ const KUNDEN = [
   {name:'AWO Seniorenpark "an den drei Teichen" APH',addr:'Arnstädter Straße 34',plz:'99885',ort:'Ohrdruf',email:''},
   {name:'AWO Seniorenpark "an den drei Teichen" HWG',addr:'Arnstädter Straße 34',plz:'99885',ort:'Ohrdruf',email:''},
   {name:'AWO Betreutes Wohnen',addr:'Am Höckfeld 11',plz:'06578',ort:'Oldisleben',email:''},
-  {name:'Deko Messezentrum',addr:'Im oberen Weidig 3',plz:'98631',ort:'Queinfeld',email:''},
+  {name:'GOLDBECK Facility Services GmbH',addr:'Ummelner Straße 4-6',plz:'33649',ort:'Bielefeld',email:'',vertrag:'V-5668-01-003A'},
+  {name:'Deko Messezentrum Queinfeld (GOLDBECK)',addr:'Ummelner Straße 4-6',plz:'33649',ort:'Bielefeld',email:'',vertrag:'V-5668-01-003A'},
   {name:'St.Martin Schule im Kinderdorf',addr:'Birkenweg 1',plz:'97792',ort:'Riedenberg',email:''},
   {name:'AWO Seniorenpflegeheim " Gleichbergblick "',addr:'Neue Straße 10',plz:'98631',ort:'Römhild',email:''},
   {name:'Kita "Brunnenstörche"',addr:'Schulstraße 16',plz:'98574',ort:'Schmalkalden',email:''},
@@ -953,6 +954,9 @@ function pick(k) {
   document.getElementById('plz').value = k.plz;
   document.getElementById('ort').value = k.ort;
   currentKundeEmail = k.email || '';
+  if (k.vertrag) {
+    document.getElementById('auftragsnr').value = k.vertrag;
+  }
   dd.classList.remove('open');
 }
 
