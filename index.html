@@ -451,8 +451,51 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '3.5.2';
+var APP_VERSION = '3.5.3';
 var CHANGELOG = [
+  {
+    version: '3.5.3',
+    date: '17.11.2026',
+    notes: [
+      'Bugfix: Unterschrift verschwand nach Vollbild-Modus beim Drehen des Bildschirms',
+      'Alle Unterschriftfelder speichern Striche jetzt als Koordinaten statt als Pixel-Bild — rotationssicher'
+    ]
+  },
+  {
+    version: '3.5.2',
+    date: '17.11.2026',
+    notes: [
+      'Bugfix: Unterschrift im Vollbild-Overlay verschwand beim Drehen des Bildschirms',
+      'Striche werden jetzt als Koordinaten gespeichert und bei Rotation neu gezeichnet'
+    ]
+  },
+  {
+    version: '3.5.0',
+    date: '17.11.2026',
+    notes: [
+      'Vollbild-Unterschrift: neuer Schaltflaeche ⛶ Vollbild bei beiden Unterschriftfeldern',
+      'Oeffnet ein Querformat-Overlay mit groesserer Zeichenflaeche fuer mobile Geraete'
+    ]
+  },
+  {
+    version: '3.4.0',
+    date: '17.11.2026',
+    notes: [
+      'Kunden-E-Mail als CC beim Mailversand: wenn ein Kunde mit hinterlegter E-Mail ausgewaehlt ist, erscheint diese automatisch im CC'
+    ]
+  },
+  {
+    version: '3.3.1',
+    date: '17.11.2026',
+    notes: [
+      'GOLDBECK Facility Services GmbH (Bielefeld) in Kundenliste, Vertragsnummer V-5668-01-003A wird automatisch eingetragen',
+      'Suche nach Messezentrum Queinfeld oder Deko Queinfeld findet ebenfalls GOLDBECK',
+      'Neuer Vorgeschriebener-Text-Button: Umruesten UE',
+      'Kundennamen Lebenshilfe auf Sozialverbund Suedthueringen Teilhabe GmbH aktualisiert',
+      'E-Mail-Grusszeile korrigiert: Annette (war Anette)',
+      'Speichername bei Berichtsart Auftrag enthaelt jetzt die Auftragsnummer'
+    ]
+  },
   {
     version: '3.3.0',
     date: '29.09.2026',
@@ -983,52 +1026,91 @@ function setupSig(canvasId, phId) {
   var ph = document.getElementById(phId);
   var ctx = canvas.getContext('2d');
   var drawing = false;
+  var strokes = [];
+  var currentStroke = [];
   var state = { hasMark: false };
-  function resize() {
-    var r = canvas.getBoundingClientRect();
+
+  function setupCtx() {
     var dpr = window.devicePixelRatio || 1;
-    var rw = r.width || canvas.offsetWidth || 300;
-    var rh = r.height || canvas.offsetHeight || 90;
-    var savedImg = null;
-    if (state.hasMark && canvas.width > 0 && canvas.height > 0) {
-      try { savedImg = canvas.toDataURL('image/png'); } catch(e) {}
-    }
+    var rw = canvas.offsetWidth || 300;
+    var rh = canvas.offsetHeight || 90;
     canvas.width = Math.max(1, Math.round(rw * dpr));
     canvas.height = Math.max(1, Math.round(rh * dpr));
+    ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
     ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
-    if (savedImg) {
-      var img = new Image();
-      img.onload = function() {
-        try { ctx.drawImage(img, 0, 0, rw, rh); } catch(e) {}
-      };
-      img.src = savedImg;
+  }
+
+  function redraw() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.width / dpr;
+    var h = canvas.height / dpr;
+    ctx.clearRect(0, 0, w, h);
+    for (var i = 0; i < strokes.length; i++) {
+      var s = strokes[i];
+      if (!s || s.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(s[0].nx * w, s[0].ny * h);
+      for (var j = 1; j < s.length; j++) {
+        ctx.lineTo(s[j].nx * w, s[j].ny * h);
+      }
+      ctx.stroke();
     }
   }
+
+  function resize() { setupCtx(); if (state.hasMark) redraw(); }
   setTimeout(resize, 50);
   setTimeout(resize, 300);
   window.addEventListener('resize', function() { setTimeout(resize, 150); });
+
   function pt(e) {
     var r = canvas.getBoundingClientRect();
     var s = e.touches ? e.touches[0] : e;
     var x = s.clientX - r.left; var y = s.clientY - r.top;
     return {x: isNaN(x) ? 0 : x, y: isNaN(y) ? 0 : y};
   }
+
   canvas.addEventListener('pointerdown', function(e) {
     if (canvas.width < 2) { setTimeout(resize, 10); return; }
-    drawing=true; var p=pt(e);
-    try { ctx.beginPath(); ctx.moveTo(p.x,p.y); } catch(e2){}
-    state.hasMark=true; ph.style.opacity='0'; e.preventDefault();
+    drawing = true; currentStroke = [];
+    var p = pt(e);
+    var dpr = window.devicePixelRatio || 1;
+    currentStroke.push({nx: p.x / (canvas.width/dpr), ny: p.y / (canvas.height/dpr)});
+    try { ctx.beginPath(); ctx.moveTo(p.x, p.y); } catch(e2){}
+    state.hasMark = true; ph.style.opacity = '0'; e.preventDefault();
   }, {passive:false});
+
   canvas.addEventListener('pointermove', function(e) {
-    if(!drawing)return; var p=pt(e);
-    try { ctx.lineTo(p.x,p.y); ctx.stroke(); } catch(e2){}
+    if (!drawing) return;
+    var p = pt(e);
+    var dpr = window.devicePixelRatio || 1;
+    currentStroke.push({nx: p.x / (canvas.width/dpr), ny: p.y / (canvas.height/dpr)});
+    try { ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); } catch(e2){}
     e.preventDefault();
   }, {passive:false});
-  canvas.addEventListener('pointerup', function() { drawing=false; });
-  canvas.addEventListener('pointerleave', function() { drawing=false; });
-  state.clear = function() { var r=canvas.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height); state.hasMark=false; ph.style.opacity='1'; };
+
+  canvas.addEventListener('pointerup', function() {
+    if (drawing && currentStroke.length > 0) strokes.push(currentStroke.slice());
+    currentStroke = []; drawing = false;
+  });
+  canvas.addEventListener('pointerleave', function() {
+    if (drawing && currentStroke.length > 0) strokes.push(currentStroke.slice());
+    currentStroke = []; drawing = false;
+  });
+
+  state.clear = function() {
+    strokes = []; currentStroke = [];
+    var dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+    state.hasMark = false; ph.style.opacity = '1';
+  };
   state.dataURL = function() { return canvas.toDataURL('image/png'); };
+  state.setStrokes = function(newStrokes) {
+    strokes = newStrokes;
+    state.hasMark = strokes.length > 0;
+    ph.style.opacity = state.hasMark ? '0' : '1';
+    resize();
+  };
   return state;
 }
 var sigA = setupSig('sigA','phA');
@@ -2087,28 +2169,9 @@ function openSigOverlay(which) {
 function closeSigOverlay(save) {
   var overlay = document.getElementById('sigOverlay');
   if (save && _overlayTarget && _overlayStrokes.length > 0) {
-    var oc = document.getElementById('sigOverlay-canvas');
-    var destCanvas = document.getElementById('sig' + _overlayTarget);
-    var ph = document.getElementById('ph' + _overlayTarget);
-    try {
-      var data = oc.toDataURL('image/png');
-      if (data && data.length > 100) {
-        var dpr = window.devicePixelRatio || 1;
-        var dw = destCanvas.offsetWidth || 300;
-        var dh = destCanvas.offsetHeight || 90;
-        destCanvas.width = Math.max(1, Math.round(dw * dpr));
-        destCanvas.height = Math.max(1, Math.round(dh * dpr));
-        var ctx = destCanvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-        ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
-        var img = new Image();
-        img.onload = function() {
-          try { ctx.drawImage(img, 0, 0, dw, dh); } catch(e) {}
-          if (ph) ph.style.display = 'none';
-        };
-        img.src = data;
-      }
-    } catch(e) {}
+    // Striche direkt ins Ziel-sigPad übertragen (rotation-sicher)
+    var destSig = _overlayTarget === 'A' ? sigA : sigK;
+    destSig.setStrokes(_overlayStrokes.slice());
   }
   overlay.classList.remove('open');
   _overlayTarget = null;
