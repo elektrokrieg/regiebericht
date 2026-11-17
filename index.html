@@ -451,7 +451,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '3.5.1';
+var APP_VERSION = '3.5.2';
 var CHANGELOG = [
   {
     version: '3.3.0',
@@ -1981,159 +1981,160 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── VOLLBILD-UNTERSCHRIFT ──
-var _overlayTarget = null; // 'A' oder 'K'
+// Stroke-basiert: Striche als Punkte-Arrays speichern → resize-sicher
+var _overlayTarget = null;
 var _overlayCtx = null;
 var _overlayDrawing = false;
-var _overlayLastX = 0;
-var _overlayLastY = 0;
+var _overlayStrokes = [];      // Array von Stroke-Arrays: [{x,y,w,h}, ...]
+var _overlayCurrentStroke = [];
+var _overlayResizeTimer = null;
+
+function _overlaySetupCtx(oc) {
+  var dpr = window.devicePixelRatio || 1;
+  var wrap = document.getElementById('sigOverlay-wrap');
+  var w = (wrap && wrap.offsetWidth > 10) ? wrap.offsetWidth : window.innerWidth;
+  var h = (wrap && wrap.offsetHeight > 10) ? wrap.offsetHeight : (window.innerHeight - 56);
+  oc.width = Math.round(w * dpr);
+  oc.height = Math.round(h * dpr);
+  _overlayCtx = oc.getContext('2d');
+  _overlayCtx.scale(dpr, dpr);
+  _overlayCtx.lineWidth = 2.5;
+  _overlayCtx.lineCap = 'round';
+  _overlayCtx.lineJoin = 'round';
+  _overlayCtx.strokeStyle = '#111';
+  return {w: w, h: h, dpr: dpr};
+}
+
+function _overlayRedraw() {
+  var oc = document.getElementById('sigOverlay-canvas');
+  if (!oc || !_overlayCtx) return;
+  var dpr = window.devicePixelRatio || 1;
+  var w = oc.width / dpr;
+  var h = oc.height / dpr;
+  _overlayCtx.clearRect(0, 0, w, h);
+  for (var i = 0; i < _overlayStrokes.length; i++) {
+    var stroke = _overlayStrokes[i];
+    if (!stroke || stroke.length < 2) continue;
+    _overlayCtx.beginPath();
+    // Striche wurden in normalisierten Koordinaten gespeichert (0..1)
+    _overlayCtx.moveTo(stroke[0].nx * w, stroke[0].ny * h);
+    for (var j = 1; j < stroke.length; j++) {
+      _overlayCtx.lineTo(stroke[j].nx * w, stroke[j].ny * h);
+    }
+    _overlayCtx.stroke();
+  }
+}
 
 function openSigOverlay(which) {
   _overlayTarget = which;
+  _overlayStrokes = [];
+  _overlayCurrentStroke = [];
+  _overlayDrawing = false;
+
   var overlay = document.getElementById('sigOverlay');
-  var label = document.getElementById('sigOverlay-label');
-  label.textContent = which === 'A' ? 'Unterschrift Ausführender' : 'Unterschrift Kunde';
   document.getElementById('sigOverlay-header').querySelector('span').textContent =
     which === 'A' ? 'Unterschrift Ausführender' : 'Unterschrift Kunde';
   overlay.classList.add('open');
 
-  // Querformat erzwingen (nur Hinweis, nicht erzwingbar per JS)
   if (screen.orientation && screen.orientation.lock) {
     screen.orientation.lock('landscape').catch(function() {});
   }
 
   var oc = document.getElementById('sigOverlay-canvas');
-  _overlayCtx = oc.getContext('2d');
-
-  // Bestehende Unterschrift ins Overlay übernehmen
-  var srcCanvas = document.getElementById('sig' + which);
 
   function initOverlayCanvas() {
-    var dpr = window.devicePixelRatio || 1;
-    var w = oc.offsetWidth || window.innerWidth;
-    var h = oc.offsetHeight || (window.innerHeight - 60);
-    oc.width = Math.round(w * dpr);
-    oc.height = Math.round(h * dpr);
-    _overlayCtx.scale(dpr, dpr);
-    _overlayCtx.lineWidth = 2.5;
-    _overlayCtx.lineCap = 'round';
-    _overlayCtx.lineJoin = 'round';
-    _overlayCtx.strokeStyle = '#111';
-    // Bestehende Sig übernehmen wenn vorhanden
-    if (srcCanvas && srcCanvas.width > 1 && srcCanvas.height > 1) {
-      try {
-        var d = srcCanvas.toDataURL('image/png');
-        if (d && d.length > 100) {
-          var img = new Image();
-          img.onload = function() {
-            try { _overlayCtx.drawImage(img, 0, 0, w, h); } catch(e) {}
-          };
-          img.src = d;
-        }
-      } catch(e) {}
-    }
+    _overlaySetupCtx(oc);
+    // Pointer Events
+    oc.onpointerdown = function(e) {
+      _overlayDrawing = true;
+      _overlayCurrentStroke = [];
+      var r = oc.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      var cw = oc.width / dpr;
+      var ch = oc.height / dpr;
+      var x = e.clientX - r.left;
+      var y = e.clientY - r.top;
+      _overlayCurrentStroke.push({nx: x/cw, ny: y/ch});
+      _overlayCtx.beginPath();
+      _overlayCtx.moveTo(x, y);
+      oc.setPointerCapture(e.pointerId);
+    };
+    oc.onpointermove = function(e) {
+      if (!_overlayDrawing) return;
+      var r = oc.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      var cw = oc.width / dpr;
+      var ch = oc.height / dpr;
+      var x = e.clientX - r.left;
+      var y = e.clientY - r.top;
+      _overlayCurrentStroke.push({nx: x/cw, ny: y/ch});
+      _overlayCtx.lineTo(x, y);
+      _overlayCtx.stroke();
+      _overlayCtx.beginPath();
+      _overlayCtx.moveTo(x, y);
+    };
+    oc.onpointerup = oc.onpointercancel = function() {
+      if (_overlayDrawing && _overlayCurrentStroke.length > 0) {
+        _overlayStrokes.push(_overlayCurrentStroke.slice());
+      }
+      _overlayCurrentStroke = [];
+      _overlayDrawing = false;
+    };
   }
   setTimeout(initOverlayCanvas, 50);
-
-  // Touch/Pointer Events
-  oc.onpointerdown = function(e) {
-    if (oc.width < 2) return;
-    _overlayDrawing = true;
-    var r = oc.getBoundingClientRect();
-    _overlayLastX = e.clientX - r.left;
-    _overlayLastY = e.clientY - r.top;
-    _overlayCtx.beginPath();
-    _overlayCtx.moveTo(_overlayLastX, _overlayLastY);
-    oc.setPointerCapture(e.pointerId);
-  };
-  oc.onpointermove = function(e) {
-    if (!_overlayDrawing) return;
-    var r = oc.getBoundingClientRect();
-    var x = e.clientX - r.left;
-    var y = e.clientY - r.top;
-    _overlayCtx.lineTo(x, y);
-    _overlayCtx.stroke();
-    _overlayCtx.beginPath();
-    _overlayCtx.moveTo(x, y);
-    _overlayLastX = x; _overlayLastY = y;
-  };
-  oc.onpointerup = oc.onpointercancel = function() { _overlayDrawing = false; };
 }
 
 function closeSigOverlay(save) {
   var overlay = document.getElementById('sigOverlay');
-  if (save && _overlayTarget) {
+  if (save && _overlayTarget && _overlayStrokes.length > 0) {
     var oc = document.getElementById('sigOverlay-canvas');
     var destCanvas = document.getElementById('sig' + _overlayTarget);
     var ph = document.getElementById('ph' + _overlayTarget);
-    if (oc.width > 1 && oc.height > 1) {
-      try {
-        var data = oc.toDataURL('image/png');
-        if (data && data.length > 100) {
-          var dpr = window.devicePixelRatio || 1;
-          var dw = destCanvas.offsetWidth || 300;
-          var dh = destCanvas.offsetHeight || 90;
-          destCanvas.width = Math.max(1, Math.round(dw * dpr));
-          destCanvas.height = Math.max(1, Math.round(dh * dpr));
-          var ctx = destCanvas.getContext('2d');
-          ctx.scale(dpr, dpr);
-          ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
-          var img = new Image();
-          img.onload = function() {
-            try { ctx.drawImage(img, 0, 0, dw, dh); } catch(e) {}
-            if (ph) ph.style.display = 'none';
-          };
-          img.src = data;
-        }
-      } catch(e) {}
-    }
+    try {
+      var data = oc.toDataURL('image/png');
+      if (data && data.length > 100) {
+        var dpr = window.devicePixelRatio || 1;
+        var dw = destCanvas.offsetWidth || 300;
+        var dh = destCanvas.offsetHeight || 90;
+        destCanvas.width = Math.max(1, Math.round(dw * dpr));
+        destCanvas.height = Math.max(1, Math.round(dh * dpr));
+        var ctx = destCanvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+        var img = new Image();
+        img.onload = function() {
+          try { ctx.drawImage(img, 0, 0, dw, dh); } catch(e) {}
+          if (ph) ph.style.display = 'none';
+        };
+        img.src = data;
+      }
+    } catch(e) {}
   }
   overlay.classList.remove('open');
   _overlayTarget = null;
+  _overlayStrokes = [];
   if (screen.orientation && screen.orientation.unlock) {
     screen.orientation.unlock();
   }
 }
 
 function clearOverlayCanvas() {
+  _overlayStrokes = [];
+  _overlayCurrentStroke = [];
   var oc = document.getElementById('sigOverlay-canvas');
   if (_overlayCtx) _overlayCtx.clearRect(0, 0, oc.width, oc.height);
 }
 
-var _overlayResizeTimer = null;
-var _overlaySavedData = null; // Unterschrift vor Resize sichern
-
 window.addEventListener('resize', function() {
   var overlay = document.getElementById('sigOverlay');
-  if (!overlay.classList.contains('open')) return;
-  var oc = document.getElementById('sigOverlay-canvas');
-
-  // Bild SOFORT sichern, bevor der Canvas seine Größe verliert
-  if (oc.width > 1 && oc.height > 1) {
-    try { _overlaySavedData = oc.toDataURL('image/png'); } catch(e) {}
-  }
-
-  // Resize debounced ausführen — warten bis Layout stabil
+  if (!overlay || !overlay.classList.contains('open')) return;
   clearTimeout(_overlayResizeTimer);
   _overlayResizeTimer = setTimeout(function() {
-    var dpr = window.devicePixelRatio || 1;
-    var wrap = document.getElementById('sigOverlay-wrap');
-    var w = wrap.offsetWidth || window.innerWidth;
-    var h = wrap.offsetHeight || (window.innerHeight - 56);
-    if (w < 10 || h < 10) return; // Layout noch nicht bereit
-    oc.width = Math.round(w * dpr);
-    oc.height = Math.round(h * dpr);
-    _overlayCtx = oc.getContext('2d');
-    _overlayCtx.scale(dpr, dpr);
-    _overlayCtx.lineWidth = 2.5; _overlayCtx.lineCap = 'round';
-    _overlayCtx.lineJoin = 'round'; _overlayCtx.strokeStyle = '#111';
-    if (_overlaySavedData) {
-      var img = new Image();
-      img.onload = function() {
-        try { _overlayCtx.drawImage(img, 0, 0, w, h); } catch(e) {}
-      };
-      img.src = _overlaySavedData;
-    }
-  }, 200);
+    var oc = document.getElementById('sigOverlay-canvas');
+    var dims = _overlaySetupCtx(oc);
+    if (dims.w < 10 || dims.h < 10) return;
+    _overlayRedraw();
+  }, 150);
 });
 </script>
 
