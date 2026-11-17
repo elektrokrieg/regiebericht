@@ -96,6 +96,21 @@ textarea { resize: vertical; }
 .sig-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 11px; color: #ccc; pointer-events: none; white-space: nowrap; }
 .sig-clear { font-size: 9px; color: #aaa; cursor: pointer; float: right; background: none; border: none; font-family: Arial; }
 .sig-clear:hover { color: #c0392b; }
+.sig-fullscreen-btn { font-size: 9px; color: #888; cursor: pointer; background: none; border: 1px solid #ccc; border-radius: 3px; padding: 1px 5px; font-family: Arial; margin-right: 4px; float: right; }
+.sig-fullscreen-btn:hover { background: #eef; border-color: #99b; color: #336; }
+/* Vollbild-Unterschrift-Overlay */
+#sigOverlay { display: none; position: fixed; inset: 0; z-index: 9999; background: #fff; flex-direction: column; }
+#sigOverlay.open { display: flex; }
+#sigOverlay-header { padding: 8px 12px; background: #1a3a5c; color: #fff; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+#sigOverlay-header span { font-size: 14px; font-weight: bold; }
+#sigOverlay-actions { display: flex; gap: 8px; }
+#sigOverlay-actions button { padding: 6px 14px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+#sigOverlay-clear { background: #c0392b; color: #fff; }
+#sigOverlay-done { background: #27ae60; color: #fff; }
+#sigOverlay-cancel { background: #888; color: #fff; }
+#sigOverlay-wrap { flex: 1; position: relative; overflow: hidden; }
+#sigOverlay-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; background: #fdfdfd; }
+#sigOverlay-label { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 13px; color: #bbb; pointer-events: none; white-space: nowrap; }
 .nicht-vor-ort-box { margin-bottom: 6px; padding: 7px 8px; background: #fff8e8; border: 1.5px solid #e8a020; border-radius: 5px; display: flex; align-items: center; gap: 8px; }
 .nicht-vor-ort-box input { width: 18px; height: 18px; margin: 0; flex-shrink: 0; cursor: pointer; accent-color: #e8a020; }
 .nicht-vor-ort-box label { font-size: 11px; font-weight: 700; color: #7a5000; cursor: pointer; margin: 0; }
@@ -357,6 +372,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
         <canvas class="sig-canvas" id="sigA"></canvas>
         <div class="sig-placeholder" id="phA">hier unterschreiben …</div>
       </div>
+      <button class="sig-fullscreen-btn" onclick="openSigOverlay('A')">⛶ Vollbild</button>
       <button class="sig-clear" onclick="clearSig('A')">Löschen</button>
       <div class="sig-label-bottom">Unterschrift Ausführender</div>
     </div>
@@ -370,6 +386,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
           <canvas class="sig-canvas" id="sigK"></canvas>
           <div class="sig-placeholder" id="phK">hier unterschreiben …</div>
         </div>
+        <button class="sig-fullscreen-btn" onclick="openSigOverlay('K')">⛶ Vollbild</button>
         <button class="sig-clear" onclick="clearSig('K')">Löschen</button>
       </div>
       <div class="nicht-vor-ort-hinweis" id="kundeAbwesendHinweis">⚠️ Unterschriftsberechtigter Kunde war nicht vor Ort</div>
@@ -434,7 +451,7 @@ body.locked .berichtsart-opt input, body.locked .nicht-vor-ort-box input, body.l
 
 <script>
 // ── VERSION ──
-var APP_VERSION = '3.3.6';
+var APP_VERSION = '3.5.0';
 var CHANGELOG = [
   {
     version: '3.3.0',
@@ -1200,8 +1217,13 @@ async function sendEmail() {
       datumFmt + ' bei ' + objName + '.\n\nGrüße'
     );
 
-    window.location.href = 'mailto:' + EMAIL_EMPFAENGER +
-      '?subject=' + betreff + '&body=' + text;
+    var mailtoLink = 'mailto:' + EMAIL_EMPFAENGER +
+      '?subject=' + betreff +
+      '&body=' + text;
+    if (currentKundeEmail) {
+      mailtoLink += '&cc=' + encodeURIComponent(currentKundeEmail);
+    }
+    window.location.href = mailtoLink;
 
     // Show instruction
     setTimeout(function() {
@@ -1957,6 +1979,164 @@ if ('serviceWorker' in navigator) {
     }).catch(function(err) { console.log('SW error:', err); });
   });
 }
+
+// ── VOLLBILD-UNTERSCHRIFT ──
+var _overlayTarget = null; // 'A' oder 'K'
+var _overlayCtx = null;
+var _overlayDrawing = false;
+var _overlayLastX = 0;
+var _overlayLastY = 0;
+
+function openSigOverlay(which) {
+  _overlayTarget = which;
+  var overlay = document.getElementById('sigOverlay');
+  var label = document.getElementById('sigOverlay-label');
+  label.textContent = which === 'A' ? 'Unterschrift Ausführender' : 'Unterschrift Kunde';
+  document.getElementById('sigOverlay-header').querySelector('span').textContent =
+    which === 'A' ? 'Unterschrift Ausführender' : 'Unterschrift Kunde';
+  overlay.classList.add('open');
+
+  // Querformat erzwingen (nur Hinweis, nicht erzwingbar per JS)
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(function() {});
+  }
+
+  var oc = document.getElementById('sigOverlay-canvas');
+  _overlayCtx = oc.getContext('2d');
+
+  // Bestehende Unterschrift ins Overlay übernehmen
+  var srcCanvas = document.getElementById('sig' + which);
+
+  function initOverlayCanvas() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = oc.offsetWidth || window.innerWidth;
+    var h = oc.offsetHeight || (window.innerHeight - 60);
+    oc.width = Math.round(w * dpr);
+    oc.height = Math.round(h * dpr);
+    _overlayCtx.scale(dpr, dpr);
+    _overlayCtx.lineWidth = 2.5;
+    _overlayCtx.lineCap = 'round';
+    _overlayCtx.lineJoin = 'round';
+    _overlayCtx.strokeStyle = '#111';
+    // Bestehende Sig übernehmen wenn vorhanden
+    if (srcCanvas && srcCanvas.width > 1 && srcCanvas.height > 1) {
+      try {
+        var d = srcCanvas.toDataURL('image/png');
+        if (d && d.length > 100) {
+          var img = new Image();
+          img.onload = function() {
+            try { _overlayCtx.drawImage(img, 0, 0, w, h); } catch(e) {}
+          };
+          img.src = d;
+        }
+      } catch(e) {}
+    }
+  }
+  setTimeout(initOverlayCanvas, 50);
+
+  // Touch/Pointer Events
+  oc.onpointerdown = function(e) {
+    if (oc.width < 2) return;
+    _overlayDrawing = true;
+    var r = oc.getBoundingClientRect();
+    _overlayLastX = e.clientX - r.left;
+    _overlayLastY = e.clientY - r.top;
+    _overlayCtx.beginPath();
+    _overlayCtx.moveTo(_overlayLastX, _overlayLastY);
+    oc.setPointerCapture(e.pointerId);
+  };
+  oc.onpointermove = function(e) {
+    if (!_overlayDrawing) return;
+    var r = oc.getBoundingClientRect();
+    var x = e.clientX - r.left;
+    var y = e.clientY - r.top;
+    _overlayCtx.lineTo(x, y);
+    _overlayCtx.stroke();
+    _overlayCtx.beginPath();
+    _overlayCtx.moveTo(x, y);
+    _overlayLastX = x; _overlayLastY = y;
+  };
+  oc.onpointerup = oc.onpointercancel = function() { _overlayDrawing = false; };
+}
+
+function closeSigOverlay(save) {
+  var overlay = document.getElementById('sigOverlay');
+  if (save && _overlayTarget) {
+    var oc = document.getElementById('sigOverlay-canvas');
+    var destCanvas = document.getElementById('sig' + _overlayTarget);
+    var ph = document.getElementById('ph' + _overlayTarget);
+    if (oc.width > 1 && oc.height > 1) {
+      try {
+        var data = oc.toDataURL('image/png');
+        if (data && data.length > 100) {
+          var dpr = window.devicePixelRatio || 1;
+          var dw = destCanvas.offsetWidth || 300;
+          var dh = destCanvas.offsetHeight || 90;
+          destCanvas.width = Math.max(1, Math.round(dw * dpr));
+          destCanvas.height = Math.max(1, Math.round(dh * dpr));
+          var ctx = destCanvas.getContext('2d');
+          ctx.scale(dpr, dpr);
+          ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+          var img = new Image();
+          img.onload = function() {
+            try { ctx.drawImage(img, 0, 0, dw, dh); } catch(e) {}
+            if (ph) ph.style.display = 'none';
+          };
+          img.src = data;
+        }
+      } catch(e) {}
+    }
+  }
+  overlay.classList.remove('open');
+  _overlayTarget = null;
+  if (screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
+  }
+}
+
+function clearOverlayCanvas() {
+  var oc = document.getElementById('sigOverlay-canvas');
+  if (_overlayCtx) _overlayCtx.clearRect(0, 0, oc.width, oc.height);
+}
+
+window.addEventListener('resize', function() {
+  var overlay = document.getElementById('sigOverlay');
+  if (!overlay.classList.contains('open')) return;
+  var oc = document.getElementById('sigOverlay-canvas');
+  var dpr = window.devicePixelRatio || 1;
+  var saved = null;
+  if (oc.width > 1 && oc.height > 1) {
+    try { saved = oc.toDataURL('image/png'); } catch(e) {}
+  }
+  var w = oc.offsetWidth || window.innerWidth;
+  var h = oc.offsetHeight || (window.innerHeight - 60);
+  oc.width = Math.round(w * dpr);
+  oc.height = Math.round(h * dpr);
+  _overlayCtx = oc.getContext('2d');
+  _overlayCtx.scale(dpr, dpr);
+  _overlayCtx.lineWidth = 2.5; _overlayCtx.lineCap = 'round'; _overlayCtx.lineJoin = 'round'; _overlayCtx.strokeStyle = '#111';
+  if (saved) {
+    var img = new Image();
+    img.onload = function() { try { _overlayCtx.drawImage(img, 0, 0, w, h); } catch(e) {} };
+    img.src = saved;
+  }
+});
 </script>
+
+<!-- Vollbild-Unterschrift-Overlay -->
+<div id="sigOverlay">
+  <div id="sigOverlay-header">
+    <span>Unterschrift</span>
+    <div id="sigOverlay-actions">
+      <button id="sigOverlay-clear" onclick="clearOverlayCanvas()">🗑 Löschen</button>
+      <button id="sigOverlay-cancel" onclick="closeSigOverlay(false)">Abbrechen</button>
+      <button id="sigOverlay-done" onclick="closeSigOverlay(true)">✓ Übernehmen</button>
+    </div>
+  </div>
+  <div id="sigOverlay-wrap">
+    <canvas id="sigOverlay-canvas"></canvas>
+    <div id="sigOverlay-label"></div>
+  </div>
+</div>
 </body>
 </html>
